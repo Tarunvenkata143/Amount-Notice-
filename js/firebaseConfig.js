@@ -22,8 +22,9 @@ const firebaseConfig = {
   measurementId: "G-7TQ3QQGGRQ"
 };
 
-// Initialize Firebase (DO NOT MODIFY THIS PART)
+// Initialize Firebase (COMPAT VERSION)
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
 console.log("✅ Firebase initialized with project:", firebaseConfig.projectId);
+console.log("✅ Database URL:", firebaseConfig.databaseURL);
