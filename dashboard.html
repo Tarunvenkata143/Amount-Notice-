@@ -1,0 +1,259 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Expense Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Header with Logout -->
+  <header class="header">
+    <h1>💰 Daily Expense & Savings Tracker</h1>
+    <button onclick="logoutUser()" class="logout-btn">🚪 Logout</button>
+  </header>
+
+  <div class="container">
+
+    <!-- ====================================== 
+         PERSON A SECTION
+         ====================================== -->
+    <section class="person-section">
+      <h2>👤 Tejaswini....</h2>
+
+      <!-- Bank Management -->
+      <div class="bank-section">
+        <h3>Bank Accounts</h3>
+        <div class="bank-inputs">
+          <div class="bank-input-group">
+            <label><h4>Bank :</h4></label>
+            <input type="number" id="personA_bank1" min="0" placeholder="₹0">
+          </div>
+          <!-- <div class="bank-input-group">
+            <label>Bank 2:</label>
+            <input type="number" id="personA_bank2" min="0" placeholder="₹0">
+          </div> -->
+          <div class="bank-total">
+            <strong>Total Bank: ₹<span id="personA_bankTotal">0</span></strong>
+          </div>
+          <button onclick="updatePersonABank()" class="save-btn">Save Banks</button>
+        </div>
+      </div>
+
+      <!-- Daily Entries Table -->
+      <table class="expense-table" id="personATable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Added (₹)</th>
+            <th>Used (₹)</th>
+            <th>Savings (₹)</th>
+            <th>Balance (₹)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="personABody">
+          <!-- Rows will be added by JS -->
+        </tbody>
+        <tfoot>
+          <tr class="totals-row">
+            <td><strong>TOTALS</strong></td>
+            <td id="personA_totalAdded">0</td>
+            <td id="personA_totalUsed">0</td>
+            <td id="personA_totalSavings">0</td>
+            <td id="personA_balance">0</td>
+            <td></td>
+          </tr>
+          <tr class="action-row">
+            <td colspan="6">
+              <button onclick="addPersonAEntry()" class="add-btn">➕ Add Daily Entry</button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <!-- ====================================== 
+         PERSON B SECTION
+         ====================================== -->
+    <section class="person-section">
+      <h2>👤 Tarun venkata Swamy.... </h2>
+
+      <!-- Bank Management -->
+      <div class="bank-section">
+        <h3>Bank Accounts</h3>
+        <div class="bank-inputs">
+          <div class="bank-input-group">
+            <label><h4>Bank :</h4></label>
+            <input type="number" id="personB_bank1" min="0" placeholder="₹0">
+          </div>
+          <div class="bank-input-group">
+            <!-- <label>Bank 2:</label>
+            <input type="number" id="personB_bank2" min="0" placeholder="₹0"> -->
+          </div>
+          <div class="bank-total">
+            <strong>Total Bank: ₹<span id="personB_bankTotal">0</span></strong>
+          </div>
+          <button onclick="updatePersonBBank()" class="save-btn">Save Banks</button>
+        </div>
+      </div>
+
+      <!-- Daily Entries Table -->
+      <table class="expense-table" id="personBTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Added (₹)</th>
+            <th>Used (₹)</th>
+            <th>Savings (₹)</th>
+            <th>Balance (₹)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="personBBody">
+          <!-- Rows will be added by JS -->
+        </tbody>
+        <tfoot>
+          <tr class="totals-row">
+            <td><strong>TOTALS</strong></td>
+            <td id="personB_totalAdded">0</td>
+            <td id="personB_totalUsed">0</td>
+            <td id="personB_totalSavings">0</td>
+            <td id="personB_balance">0</td>
+            <td></td>
+          </tr>
+          <tr class="action-row">
+            <td colspan="6">
+              <button onclick="addPersonBEntry()" class="add-btn">➕ Add Daily Entry</button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <!-- ====================================== 
+         DAILY SAVINGS SECTION (COMMON)
+         ====================================== -->
+    <section class="savings-section">
+      <h2>💚 Daily Savings (SIP)</h2>
+      <!-- <p class="info">Apply same savings to both persons</p> -->
+
+      <table class="expense-table" id="savingsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Savings Type</th>
+            <th>Amount (₹)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="savingsBody">
+          <!-- Rows will be added by JS -->
+        </tbody>
+        <tfoot>
+          <tr class="totals-row">
+            <td colspan="2"><strong>TOTAL SAVINGS</strong></td>
+            <td id="total_savings_amount">0</td>
+            <td></td>
+          </tr>
+          <tr class="action-row">
+            <td colspan="4">
+              <button onclick="addSavingsEntry()" class="add-btn">➕ Add Savings</button>
+            </td>
+          </tr>
+        </tfoot>
+      </table>  
+    </section>
+
+    <!-- ====================================== 
+         MONTHLY SUMMARY SECTION
+         ====================================== -->
+    <section class="summary-section">
+      <h2>📊 Monthly Summary</h2>
+
+      <div class="month-selector">
+        <label for="summaryMonth">Month:</label>
+        <input type="month" id="summaryMonth">
+        <button onclick="updateMonthlySummary()" class="summary-btn">View Summary</button>
+      </div>
+
+      <div class="summary-grid">
+        <!-- Person A Summary -->
+        <div class="summary-box person-a-summary">
+          <h3>Person A</h3>
+          <div class="summary-item">
+            <span>Total Added:</span>
+            <strong>₹<span id="summaryA_added">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Total Used:</span>
+            <strong>₹<span id="summaryA_used">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Total Savings:</span>
+            <strong>₹<span id="summaryA_savings">0</span></strong>
+          </div>
+          <div class="summary-item balance">
+            <span>Final Balance:</span>
+            <strong>₹<span id="summaryA_balance">0</span></strong>
+          </div>
+        </div>
+
+        <!-- Person B Summary -->
+        <div class="summary-box person-b-summary">
+          <h3>Person B</h3>
+          <div class="summary-item">
+            <span>Total Added:</span>
+            <strong>₹<span id="summaryB_added">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Total Used:</span>
+            <strong>₹<span id="summaryB_used">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Total Savings:</span>
+            <strong>₹<span id="summaryB_savings">0</span></strong>
+          </div>
+          <div class="summary-item balance">
+            <span>Final Balance:</span>
+            <strong>₹<span id="summaryB_balance">0</span></strong>
+          </div>
+        </div>
+
+        <!-- Combined Summary -->
+        <div class="summary-box combined-summary">
+          <h3>Combined Total</h3>
+          <div class="summary-item">
+            <span>Total Added (Both):</span>
+            <strong>₹<span id="summary_totalAdded">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Total Used (Both):</span>
+            <strong>₹<span id="summary_totalUsed">0</span></strong>
+          </div>
+          <div class="summary-item">
+            <span>Common Savings:</span>
+            <strong>₹<span id="summary_savings">0</span></strong>
+          </div>
+          <div class="summary-item balance">
+            <span>Final Balance (Both):</span>
+            <strong>₹<span id="summary_finalBalance">0</span></strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/storage.js"></script>
+  <script src="js/personA.js"></script>
+  <script src="js/personB.js"></script>
+  <script src="js/savings.js"></script>
+  <script src="js/summary.js"></script>
+
+</body>
+</html>
