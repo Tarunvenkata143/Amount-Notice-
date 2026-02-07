@@ -16,6 +16,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Calculate initial summary
   updateMonthlySummary();
+  
+  // Listen for Firebase real-time updates
+  document.addEventListener("dataUpdated", function() {
+    console.log("🔄 Firebase summary data updated - refreshing UI");
+    updateMonthlySummary();
+  });
 });
 
 // ============================================

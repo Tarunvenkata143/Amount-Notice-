@@ -19,6 +19,14 @@ document.addEventListener("DOMContentLoaded", function() {
   loadSavingsEntries();
   updateSavingsTotal();
   updateSavingsInEntries();
+  
+  // Listen for Firebase real-time updates
+  document.addEventListener("dataUpdated", function() {
+    console.log("🔄 Firebase savings data updated - refreshing UI");
+    loadSavingsEntries();
+    updateSavingsTotal();
+    updateSavingsInEntries();
+  });
 });
 
 // ============================================

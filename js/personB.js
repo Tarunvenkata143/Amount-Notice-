@@ -9,6 +9,14 @@ document.addEventListener("DOMContentLoaded", function() {
   }
   
   initializePersonB();
+  
+  // Listen for Firebase real-time updates
+  document.addEventListener("dataUpdated", function() {
+    console.log("🔄 Firebase data updated - refreshing UI");
+    loadEntriesB();
+    loadBankDataB();
+    updatePersonBTotals();
+  });
 });
 
 function initializePersonB() {
