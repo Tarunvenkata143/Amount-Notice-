@@ -10,6 +10,18 @@
 // Updates from other devices appear instantly via Firebase listeners
 //
 
+// Global error handler - catch all errors to prevent silent redirects
+window.addEventListener('error', function(event) {
+  console.error("❌ UNCAUGHT ERROR:", event.error);
+  console.error("Message:", event.message);
+  console.error("File:", event.filename);
+  console.error("Line:", event.lineno);
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+  console.error("❌ UNHANDLED PROMISE REJECTION:", event.reason);
+});
+
 // Local cache (synced from Firebase in real-time)
 let localCache = {
   banks: { A: { bank1: 0, bank2: 0 }, B: { bank1: 0, bank2: 0 } },
@@ -34,71 +46,106 @@ function initializeFirebaseSync() {
   }
 
   // Check if Firebase database is available
-  if (typeof database === 'undefined') {
-    console.error("❌ Firebase database not initialized. Waiting...");
-    setTimeout(initializeFirebaseSync, 1000); // Retry after 1 second
+  if (typeof database === 'undefined' || !database) {
+    console.warn("⏳ Firebase database not ready yet, retrying in 500ms...");
+    setTimeout(initializeFirebaseSync, 500); // Retry after 500ms
+    return;
+  }
+
+  if (typeof firebase === 'undefined' || !firebase) {
+    console.warn("⏳ Firebase not ready yet, retrying in 500ms...");
+    setTimeout(initializeFirebaseSync, 500); // Retry after 500ms
     return;
   }
 
   console.log("🔄 Initializing Firebase real-time sync...");
 
   try {
-    // Listen for bank changes
-    database.ref('banks').on('value', (snapshot) => {
-      if (snapshot.exists()) {
-        localCache.banks = snapshot.val();
-        console.log("📱 Bank data synced from Firebase");
+    // Listen for bank changes with error handling
+    database.ref('banks').on('value', 
+      (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            localCache.banks = snapshot.val();
+            console.log("📱 Bank data synced from Firebase");
+          }
+          document.dispatchEvent(new Event('dataUpdated'));
+        } catch (e) {
+          console.error("❌ Error processing bank snapshot:", e);
+        }
+      }, 
+      (error) => {
+        console.error("❌ Error reading banks:", error.code, error.message);
       }
-      document.dispatchEvent(new Event('dataUpdated'));
-    }, (error) => {
-      console.error("❌ Error reading banks:", error);
-    });
+    );
 
-    // Listen for entry changes
-    database.ref('entries').on('value', (snapshot) => {
-      if (snapshot.exists()) {
-        localCache.entries = snapshot.val();
-      } else {
-        localCache.entries = { A: [], B: [] };
+    // Listen for entry changes with error handling
+    database.ref('entries').on('value',
+      (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            localCache.entries = snapshot.val();
+          } else {
+            localCache.entries = { A: [], B: [] };
+          }
+          console.log("📱 Entries synced from Firebase");
+          document.dispatchEvent(new Event('dataUpdated'));
+        } catch (e) {
+          console.error("❌ Error processing entries snapshot:", e);
+        }
+      },
+      (error) => {
+        console.error("❌ Error reading entries:", error.code, error.message);
       }
-      console.log("📱 Entries synced from Firebase");
-      document.dispatchEvent(new Event('dataUpdated'));
-    }, (error) => {
-      console.error("❌ Error reading entries:", error);
-    });
+    );
 
-    // Listen for savings changes
-    database.ref('savings').on('value', (snapshot) => {
-      if (snapshot.exists()) {
-        localCache.savings = snapshot.val();
-      } else {
-        localCache.savings = [];
+    // Listen for savings changes with error handling
+    database.ref('savings').on('value',
+      (snapshot) => {
+        try {
+          if (snapshot.exists()) {
+            localCache.savings = snapshot.val();
+          } else {
+            localCache.savings = [];
+          }
+          console.log("📱 Savings synced from Firebase");
+          document.dispatchEvent(new Event('dataUpdated'));
+        } catch (e) {
+          console.error("❌ Error processing savings snapshot:", e);
+        }
+      },
+      (error) => {
+        console.error("❌ Error reading savings:", error.code, error.message);
       }
-      console.log("📱 Savings synced from Firebase");
-      document.dispatchEvent(new Event('dataUpdated'));
-    }, (error) => {
-      console.error("❌ Error reading savings:", error);
-    });
+    );
 
     // Load initial data from Firebase
     database.ref().once('value', (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        if (data.banks) localCache.banks = data.banks;
-        if (data.entries) localCache.entries = data.entries;
-        if (data.savings) localCache.savings = data.savings;
+      try {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          if (data.banks) localCache.banks = data.banks;
+          if (data.entries) localCache.entries = data.entries;
+          if (data.savings) localCache.savings = data.savings;
+        }
+        cacheLoaded = true;
+        console.log("✅ Firebase cache loaded and listening for changes");
+        document.dispatchEvent(new Event('cacheReady'));
+      } catch (e) {
+        console.error("❌ Error loading initial data:", e);
+        cacheLoaded = true; // Mark as loaded anyway
+        document.dispatchEvent(new Event('cacheReady'));
       }
-      cacheLoaded = true;
-      console.log("✅ Firebase cache loaded and listening for changes");
-      document.dispatchEvent(new Event('cacheReady'));
     }).catch((error) => {
-      console.error("❌ Error loading initial data:", error);
-      cacheLoaded = true; // Mark as loaded anyway to avoid infinite loops
+      console.error("❌ Error in once('value'):", error.code, error.message);
+      cacheLoaded = true; // Mark as loaded to prevent stuck state
       document.dispatchEvent(new Event('cacheReady'));
     });
 
   } catch (error) {
     console.error("❌ Error initializing Firebase sync:", error);
+    cacheLoaded = true; // Mark as loaded to prevent stuck state
+    document.dispatchEvent(new Event('cacheReady'));
   }
 }
 

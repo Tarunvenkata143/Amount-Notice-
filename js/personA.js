@@ -2,11 +2,31 @@
 // PERSON A - Daily Expense Management
 // ============================================
 
+// ============================================
+// PERSON A - Daily Expense Management
+// ============================================
+
+// Prevent redirect loops - add timestamp to prevent rapid re-redirects
+window.lastRedirectTime = 0;
+
+function safeRedirect(url) {
+  const now = Date.now();
+  if (now - window.lastRedirectTime < 2000) {
+    console.error("⚠️ Preventing rapid redirect loop!");
+    return;
+  }
+  window.lastRedirectTime = now;
+  window.location.href = url;
+}
+
 // Check authentication on page load
 document.addEventListener("DOMContentLoaded", function() {
   try {
+    console.log("🔍 Dashboard page loaded, checking authentication...");
+    
     if (!isLoggedIn()) {
-      window.location.href = "index.html";
+      console.log("❌ User not logged in, redirecting to login...");
+      safeRedirect("index.html");
       return;
     }
     
@@ -25,8 +45,9 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     });
   } catch (error) {
-    console.error("❌ Error during PersonA initialization:", error);
-    alert("Error loading app. Check browser console for details.");
+    console.error("❌ CRITICAL ERROR during PersonA initialization:", error);
+    console.error("Stack trace:", error.stack);
+    alert("Fatal error: " + error.message + "\nCheck browser console for details.");
   }
 });
 

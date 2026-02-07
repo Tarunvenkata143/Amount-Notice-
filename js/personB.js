@@ -2,10 +2,28 @@
 // PERSON B - Daily Expense Management
 // ============================================
 
+// ============================================
+// PERSON B - Daily Expense Management
+// ============================================
+
+// Use same redirect protection from PersonA
+function safeRedirect(url) {
+  const now = Date.now();
+  if (now - (window.lastRedirectTime || 0) < 2000) {
+    console.error("⚠️ Preventing rapid redirect loop!");
+    return;
+  }
+  window.lastRedirectTime = now;
+  window.location.href = url;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
   try {
+    console.log("🔍 Dashboard page loaded, checking authentication...");
+    
     if (!isLoggedIn()) {
-      window.location.href = "index.html";
+      console.log("❌ User not logged in, redirecting to login...");
+      safeRedirect("index.html");
       return;
     }
     
@@ -24,8 +42,9 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     });
   } catch (error) {
-    console.error("❌ Error during PersonB initialization:", error);
-    alert("Error loading app. Check browser console for details.");
+    console.error("❌ CRITICAL ERROR during PersonB initialization:", error);
+    console.error("Stack trace:", error.stack);
+    alert("Fatal error: " + error.message + "\nCheck browser console for details.");
   }
 });
 
