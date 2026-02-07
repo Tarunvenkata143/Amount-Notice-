@@ -2,10 +2,6 @@
 // PERSON A - Daily Expense Management
 // ============================================
 
-// ============================================
-// PERSON A - Daily Expense Management
-// ============================================
-
 // Prevent redirect loops - add timestamp to prevent rapid re-redirects
 window.lastRedirectTime = 0;
 
@@ -33,15 +29,15 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log("✅ User authenticated, initializing dashboard...");
     initializePersonA();
     
-    // Listen for Firebase real-time updates
-    document.addEventListener("dataUpdated", function() {
-      console.log("🔄 Firebase data updated - refreshing UI");
+    // Listen for Firestore real-time updates
+    document.addEventListener("firestoreUpdated", function(event) {
+      console.log("📱 Firestore data updated - refreshing UI");
       try {
         loadEntries();
         loadBankData();
         updatePersonATotals();
       } catch (e) {
-        console.error("❌ Error in dataUpdated handler:", e);
+        console.error("❌ Error in firestoreUpdated handler:", e);
       }
     });
   } catch (error) {
@@ -53,6 +49,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function initializePersonA() {
   try {
+    console.log("🔄 Initializing Firestore real-time sync...");
+    initializeRealtimeSync(); // Set up Firestore listener NOW, not later
+    
     console.log("Loading bank data...");
     loadBankData();
     console.log("Loading entries...");
@@ -153,23 +152,21 @@ function calculatePersonARowBalance(row) {
 }
 
 // ============================================
-// SAVE ENTRY
+// SAVE ENTRY (Updates Firestore)
 // ============================================
 
-function savePersonAEntry(person, index) {
-  const personLetter = typeof person === "string" ? person : "A";
-  const tbody = document.getElementById("personABody");
-  const rows = tbody.querySelectorAll(`tr[data-person="${personLetter}"]`);
-
-  // Find the row with matching index
-  let targetRow = null;
-  rows.forEach(row => {
-    if (row.dataset.index === String(index)) {
-      targetRow = row;
+function savePersonAEntry(index) {
+  try {
+    const tbody = document.getElementById("personABody");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    
+    // Find the row at this index
+    const targetRow = rows[index];
+    if (!targetRow) {
+      console.warn(`❌ Row ${index} not found`);
+      return;
     }
-  });
 
-  if (targetRow) {
     const entry = {
       date: targetRow.querySelector(".date-input").value,
       added: parseFloat(targetRow.querySelector(".added-input").value) || 0,
@@ -178,10 +175,26 @@ function savePersonAEntry(person, index) {
       balance: parseFloat(targetRow.querySelector(".balance-input").value) || 0
     };
 
-    const entries = getEntries(personLetter);
-    entries[index] = entry;
-    saveEntries(personLetter, entries);
-    updatePersonATotals();
+    // Get current entries for Person A
+    const entries = getEntries("A");
+    
+    // Update or add the entry
+    if (index < entries.length) {
+      entries[index] = entry;
+    } else {
+      entries.push(entry);
+    }
+    
+    // Save to Firestore
+    return saveEntries("A", entries)
+      .then(() => {
+        console.log(`✅ Entry ${index} saved for Person A`);
+      })
+      .catch((error) => {
+        console.error(`❌ Failed to save entry ${index}:`, error);
+      });
+  } catch (error) {
+    console.error("❌ Error in savePersonAEntry:", error);
   }
 }
 
@@ -189,11 +202,19 @@ function savePersonAEntry(person, index) {
 // DELETE ENTRY
 // ============================================
 
-function deletePersonAEntry(person, index) {
+function deletePersonAEntry(index) {
   if (confirm("Are you sure you want to delete this entry?")) {
-    deleteEntry(person, index);
-    loadEntries();
-    updatePersonATotals();
+    const entries = getEntries("A");
+    entries.splice(index, 1);
+    saveEntries("A", entries)
+      .then(() => {
+        console.log("✅ Entry deleted");
+        loadEntries();
+        updatePersonATotals();
+      })
+      .catch((error) => {
+        console.error("❌ Failed to delete entry:", error);
+      });
   }
 }
 
@@ -227,7 +248,7 @@ function loadEntries() {
       <td><input type="number" class="used-input" min="0" value="${entry.used || 0}"></td>
       <td><input type="number" class="savings-input" min="0" value="${entry.savings || 0}" readonly></td>
       <td><input type="number" class="balance-input" min="0" value="${entry.balance || 0}" readonly></td>
-      <td><button onclick="deletePersonAEntry('${entry.personId}', ${entry.originalIndex})" class="delete-btn">❌</button></td>
+      <td><button onclick="deletePersonBEntry('${entry.personId}', ${entry.originalIndex})" class="delete-btn">❌</button></td>
     `;
 
     tbody.appendChild(row);
@@ -238,46 +259,87 @@ function loadEntries() {
 
     addedInput.addEventListener("input", () => {
       calculatePersonARowBalance(row);
-      savePersonAEntry(entry.personId, entry.originalIndex);
+      updatePersonAEntryOnOtherPerson(entry.personId, entry.originalIndex);
     });
     usedInput.addEventListener("input", () => {
       calculatePersonARowBalance(row);
-      savePersonAEntry(entry.personId, entry.originalIndex);
+      updatePersonAEntryOnOtherPerson(entry.personId, entry.originalIndex);
     });
 
     row.querySelector(".date-input").addEventListener("input", () => {
-      savePersonAEntry(entry.personId, entry.originalIndex);
+      updatePersonAEntryOnOtherPerson(entry.personId, entry.originalIndex);
     });
   });
 }
+
+// ============================================
+// UPDATE ENTRY (works for both Person A and B)
+// ============================================
+
+function updatePersonAEntryOnOtherPerson(personId, index) {
+  try {
+    const tbody = document.getElementById("personABody");
+    const rows = Array.from(tbody.querySelectorAll(`tr[data-person="${personId}"]`));
+    
+    // Find the row with matching index
+    const targetRow = rows.find(row => parseInt(row.dataset.index) === index);
+    if (!targetRow) {
+      console.warn(`❌ Row for ${personId}[${index}] not found`);
+      return;
+    }
+
+    const entry = {
+      date: targetRow.querySelector(".date-input").value,
+      added: parseFloat(targetRow.querySelector(".added-input").value) || 0,
+      used: parseFloat(targetRow.querySelector(".used-input").value) || 0,
+      savings: parseFloat(targetRow.querySelector(".savings-input").value) || 0,
+      balance: parseFloat(targetRow.querySelector(".balance-input").value) || 0
+    };
+
+    // Get current entries for the person
+    const entries = getEntries(personId);
+    entries[index] = entry;
+    
+    // Save to Firestore
+    saveEntries(personId, entries)
+      .then(() => {
+        console.log(`✅ Entry updated for Person ${personId}[${index}]`);
+      })
+      .catch((error) => {
+        console.error(`❌ Failed to update entry for Person ${personId}[${index}]:`, error);
+      });
+  } catch (error) {
+    console.error("❌ Error in updatePersonAEntryOnOtherPerson:", error);
+  }
+}
+
+// Note: deletePersonBEntry is defined in personB.js
+// This file handles rendering both Person A and B entries in the shared table
 
 // ============================================
 // UPDATE TOTALS
 // ============================================
 
 function updatePersonATotals() {
-  // Get entries from BOTH Person A and B
+  // Only use Person A entries for Person A totals
   const entriesA = getEntries("A");
-  const entriesB = getEntries("B");
-  const allEntries = [...entriesA, ...entriesB];
-  
   const bankData = getBankData("A");
   const startingBank = bankData.bank1 + bankData.bank2;
 
   let totalAdded = 0;
   let totalUsed = 0;
 
-  allEntries.forEach(entry => {
+  entriesA.forEach(entry => {
     totalAdded += entry.added || 0;
     totalUsed += entry.used || 0;
   });
 
-  // Bank Balance = Starting Bank + Total Added - Total Used
+  // Bank Balance = Starting Bank + Total Added - Total Used (for Person A only)
   const bankBalance = startingBank + totalAdded - totalUsed;
 
   document.getElementById("personA_totalAdded").textContent = totalAdded.toFixed(2);
   document.getElementById("personA_totalUsed").textContent = totalUsed.toFixed(2);
-  document.getElementById("personA_totalSavings").textContent = "0.00";
+  document.getElementById("personA_totalSavings").textContent = getTotalSavings().toFixed(2);
   document.getElementById("personA_balance").textContent = bankBalance.toFixed(2);
 }
 

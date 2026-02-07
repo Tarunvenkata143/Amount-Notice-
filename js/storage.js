@@ -1,161 +1,115 @@
 // ==========================================
-// FIREBASE STORAGE MODULE (Hybrid Sync)
+// FIRESTORE STORAGE MODULE
 // ==========================================
-// 
-// This module uses Firebase Realtime Database for:
-// - Real-time synchronization across devices
-// - Cloud backup of all data
-// 
-// It maintains a local cache for instant reads while syncing with Firebase
-// Updates from other devices appear instantly via Firebase listeners
+// Uses Cloud Firestore for real-time sync across devices
+// ALL devices read/write to: expenseTracker/sharedData
+// NO localStorage usage
 //
 
-// Global error handler - catch all errors to prevent silent redirects
-window.addEventListener('error', function(event) {
-  console.error("❌ UNCAUGHT ERROR:", event.error);
-  console.error("Message:", event.message);
-  console.error("File:", event.filename);
-  console.error("Line:", event.lineno);
-});
-
-window.addEventListener('unhandledrejection', function(event) {
-  console.error("❌ UNHANDLED PROMISE REJECTION:", event.reason);
-});
-
-// Local cache (synced from Firebase in real-time)
-let localCache = {
+// Global state (synced from Firestore in real-time)
+let appData = {
   banks: { A: { bank1: 0, bank2: 0 }, B: { bank1: 0, bank2: 0 } },
   entries: { A: [], B: [] },
   savings: []
 };
 
-let cacheLoaded = false;
+let isInitialized = false;
+let unsubscribeListener = null;
 
 // ==========================================
-// INITIALIZATION & REAL-TIME LISTENERS
+// FIRESTORE REFERENCE
 // ==========================================
+// Shared document - all devices read/write here
+const sharedDocRef = db.collection("expenseTracker").doc("sharedData");
 
+// ==========================================
+// SAVE DATA TO FIRESTORE
+// ==========================================
 /**
- * Initialize Firebase listeners for real-time sync
- * Call this once when app loads (from auth.js or dashboard load)
+ * Save entire data object to Firestore
+ * Called after ANY data change (add entry, delete entry, etc.)
  */
-function initializeFirebaseSync() {
-  if (cacheLoaded) {
-    console.log("✅ Firebase sync already initialized");
-    return;
+function saveData(data) {
+  if (!data) {
+    console.error("❌ Cannot save null/undefined data");
+    return Promise.reject("No data to save");
   }
 
-  // Check if Firebase database is available
-  if (typeof database === 'undefined' || !database) {
-    console.warn("⏳ Firebase database not ready yet, retrying in 500ms...");
-    setTimeout(initializeFirebaseSync, 500); // Retry after 500ms
-    return;
-  }
-
-  if (typeof firebase === 'undefined' || !firebase) {
-    console.warn("⏳ Firebase not ready yet, retrying in 500ms...");
-    setTimeout(initializeFirebaseSync, 500); // Retry after 500ms
-    return;
-  }
-
-  console.log("🔄 Initializing Firebase real-time sync...");
-
-  try {
-    // Listen for bank changes with error handling
-    database.ref('banks').on('value', 
-      (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            localCache.banks = snapshot.val();
-            console.log("📱 Bank data synced from Firebase");
-          }
-          document.dispatchEvent(new Event('dataUpdated'));
-        } catch (e) {
-          console.error("❌ Error processing bank snapshot:", e);
-        }
-      }, 
-      (error) => {
-        console.error("❌ Error reading banks:", error.code, error.message);
-      }
-    );
-
-    // Listen for entry changes with error handling
-    database.ref('entries').on('value',
-      (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            localCache.entries = snapshot.val();
-          } else {
-            localCache.entries = { A: [], B: [] };
-          }
-          console.log("📱 Entries synced from Firebase");
-          document.dispatchEvent(new Event('dataUpdated'));
-        } catch (e) {
-          console.error("❌ Error processing entries snapshot:", e);
-        }
-      },
-      (error) => {
-        console.error("❌ Error reading entries:", error.code, error.message);
-      }
-    );
-
-    // Listen for savings changes with error handling
-    database.ref('savings').on('value',
-      (snapshot) => {
-        try {
-          if (snapshot.exists()) {
-            localCache.savings = snapshot.val();
-          } else {
-            localCache.savings = [];
-          }
-          console.log("📱 Savings synced from Firebase");
-          document.dispatchEvent(new Event('dataUpdated'));
-        } catch (e) {
-          console.error("❌ Error processing savings snapshot:", e);
-        }
-      },
-      (error) => {
-        console.error("❌ Error reading savings:", error.code, error.message);
-      }
-    );
-
-    // Load initial data from Firebase
-    database.ref().once('value', (snapshot) => {
-      try {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          if (data.banks) localCache.banks = data.banks;
-          if (data.entries) localCache.entries = data.entries;
-          if (data.savings) localCache.savings = data.savings;
-        }
-        cacheLoaded = true;
-        console.log("✅ Firebase cache loaded and listening for changes");
-        document.dispatchEvent(new Event('cacheReady'));
-      } catch (e) {
-        console.error("❌ Error loading initial data:", e);
-        cacheLoaded = true; // Mark as loaded anyway
-        document.dispatchEvent(new Event('cacheReady'));
-      }
-    }).catch((error) => {
-      console.error("❌ Error in once('value'):", error.code, error.message);
-      cacheLoaded = true; // Mark as loaded to prevent stuck state
-      document.dispatchEvent(new Event('cacheReady'));
+  console.log("⬆️ Saving to Firestore:", data);
+  
+  return sharedDocRef.set(data)
+    .then(() => {
+      console.log("✅ Data saved to Firestore successfully");
+    })
+    .catch((error) => {
+      console.error("❌ Error saving to Firestore:", error);
+      alert("Failed to save. Check console for details.\n\nError: " + error.message);
     });
+}
 
-  } catch (error) {
-    console.error("❌ Error initializing Firebase sync:", error);
-    cacheLoaded = true; // Mark as loaded to prevent stuck state
-    document.dispatchEvent(new Event('cacheReady'));
+// ==========================================
+// REAL-TIME LISTENER (onSnapshot)
+// ==========================================
+/**
+ * Listen to Firestore for real-time updates
+ * This is called ONCE on page load
+ * All changes on ANY device trigger this callback
+ */
+function initializeRealtimeSync() {
+  if (isInitialized) {
+    console.log("✅ Real-time sync already initialized");
+    return;
+  }
+
+  console.log("🔄 Setting up real-time Firestore listener...");
+
+  // unsubscribe = function that stops listening
+  unsubscribeListener = sharedDocRef.onSnapshot(
+    (doc) => {
+      // Success callback
+      if (doc.exists) {
+        const data = doc.data();
+        console.log("📱 Data synced from Firestore:", data);
+        
+        // Update global state
+        appData = data;
+
+        // Dispatch event so UI components can refresh
+        document.dispatchEvent(new CustomEvent('firestoreUpdated', { detail: data }));
+      } else {
+        console.log("⚠️ No document found in Firestore yet");
+        // Initialize with empty data
+        saveData(appData);
+      }
+    },
+    (error) => {
+      // Error callback
+      console.error("❌ Error in Firestore listener:", error);
+      alert("Real-time sync error: " + error.message);
+    }
+  );
+
+  isInitialized = true;
+  console.log("✅ Real-time sync initialized successfully");
+}
+
+// ==========================================
+// STOP LISTENING (for logout)
+// ==========================================
+function stopRealtimeSync() {
+  if (unsubscribeListener) {
+    console.log("🛑 Stopping real-time sync listener");
+    unsubscribeListener();
+    unsubscribeListener = null;
+    isInitialized = false;
   }
 }
 
 // ==========================================
-// BANK MANAGEMENT (Get/Save)
+// BANK MANAGEMENT
 // ==========================================
-
 function getBankData(person) {
-  // Return from local cache (instantly available)
-  const banks = localCache.banks[person] || { bank1: 0, bank2: 0 };
+  const banks = appData.banks[person] || { bank1: 0, bank2: 0 };
   return {
     bank1: parseInt(banks.bank1) || 0,
     bank2: parseInt(banks.bank2) || 0
@@ -163,24 +117,13 @@ function getBankData(person) {
 }
 
 function saveBankData(person, bank1, bank2) {
-  // Convert to numbers
   bank1 = parseInt(bank1) || 0;
   bank2 = parseInt(bank2) || 0;
 
-  // Update local cache immediately
-  localCache.banks[person] = { bank1, bank2 };
-
-  // Write to Firebase (async, but don't wait)
-  if (typeof database !== 'undefined' && database) {
-    console.log(`⬆️ Saving banks to Firebase for ${person}:`, { bank1, bank2 });
-    database.ref(`banks/${person}`).set({ bank1, bank2 })
-      .then(() => console.log(`✅ Banks saved to Firebase for ${person}`))
-      .catch((error) => {
-        console.error("❌ Error saving banks to Firebase:", error);
-      });
-  } else {
-    console.log("⚠️ Firebase not available, data saved locally only");
-  }
+  console.log(`⬆️ Updating banks for ${person}:`, { bank1, bank2 });
+  
+  appData.banks[person] = { bank1, bank2 };
+  return saveData(appData);
 }
 
 function getTotalBank(person) {
@@ -189,111 +132,74 @@ function getTotalBank(person) {
 }
 
 // ==========================================
-// DAILY ENTRIES MANAGEMENT
+// ENTRIES MANAGEMENT
 // ==========================================
-
 function getEntries(person) {
-  // Return from local cache (instantly available)
-  const entries = localCache.entries[person] || [];
-  
-  // Ensure it's an array (Firebase sometimes stores as object)
-  if (Array.isArray(entries)) {
-    return entries;
-  } else {
-    return Object.values(entries); // Convert object to array if needed
-  }
+  const entries = appData.entries[person] || [];
+  return Array.isArray(entries) ? entries : Object.values(entries);
 }
 
 function saveEntries(person, entries) {
-  // Update local cache immediately
-  localCache.entries[person] = entries;
+  console.log(`⬆️ Updating entries for ${person}:`, entries);
   
-  // Write to Firebase (async)
-  if (typeof database !== 'undefined' && database) {
-    console.log(`⬆️ Saving ${entries.length} entries to Firebase for ${person}`);
-    database.ref(`entries/${person}`).set(entries)
-      .then(() => console.log(`✅ Entries saved to Firebase for ${person}`))
-      .catch((error) => {
-        console.error("❌ Error saving entries to Firebase:", error);
-      });
-  } else {
-    console.log("⚠️ Firebase not available, data saved locally only");
-  }
+  appData.entries[person] = entries;
+  return saveData(appData);
 }
 
 function addEntry(person, entry) {
   const entries = getEntries(person);
   entries.push(entry);
-  saveEntries(person, entries);
+  return saveEntries(person, entries);
 }
 
 function updateEntry(person, index, entry) {
   const entries = getEntries(person);
   entries[index] = entry;
-  saveEntries(person, entries);
+  return saveEntries(person, entries);
 }
 
 function deleteEntry(person, index) {
   const entries = getEntries(person);
   entries.splice(index, 1);
-  saveEntries(person, entries);
+  return saveEntries(person, entries);
 }
 
 // ==========================================
 // SAVINGS MANAGEMENT
-// ==========================================
-
+// =========================================
 function getSavings() {
-  // Return from local cache (instantly available)
-  const savings = localCache.savings || [];
-  
-  // Ensure it's an array
-  if (Array.isArray(savings)) {
-    return savings;
-  } else {
-    return Object.values(savings);
-  }
+  const savings = appData.savings || [];
+  return Array.isArray(savings) ? savings : Object.values(savings);
 }
 
 function saveSavings(savings) {
-  // Update local cache immediately
-  localCache.savings = savings;
-
-  // Write to Firebase (async)
-  if (typeof database !== 'undefined' && database) {
-    console.log(`⬆️ Saving ${savings.length} savings items to Firebase`);
-    database.ref('savings').set(savings)
-      .then(() => console.log('✅ Savings saved to Firebase'))
-      .catch((error) => {
-        console.error("❌ Error saving savings to Firebase:", error);
-      });
-  } else {
-    console.log("⚠️ Firebase not available, data saved locally only");
-  }
+  console.log("⬆️ Updating savings:", savings);
+  
+  appData.savings = savings;
+  return saveData(appData);
 }
 
 function addSaving(saving) {
   const savings = getSavings();
   savings.push(saving);
-  saveSavings(savings);
+  return saveSavings(savings);
 }
 
 function updateSaving(index, saving) {
   const savings = getSavings();
   savings[index] = saving;
-  saveSavings(savings);
+  return saveSavings(savings);
 }
 
 function deleteSaving(index) {
   const savings = getSavings();
   savings.splice(index, 1);
-  saveSavings(savings);
+  return saveSavings(savings);
 }
 
 // ==========================================
 // CALCULATIONS
 // ==========================================
-
 function getTotalAdded(person) {
   const entries = getEntries(person);
   return entries.reduce((sum, e) => sum + (parseInt(e.added) || 0), 0);
@@ -327,49 +233,44 @@ function getMonthlyData(person, month, year) {
 }
 
 // ==========================================
-// AUTHENTICATION
+// AUTHENTICATION (sessionStorage for tab-specific persistence)
 // ==========================================
+// Using sessionStorage instead of localStorage:
+// - sessionStorage persists across page reloads (same tab)
+// - sessionStorage is cleared when tab closes
+// - NOT the same as localStorage (which persists across browser restarts)
 
 function isLoggedIn() {
-  const loggedIn = localStorage.getItem('isLoggedIn') === "true";
-  console.log("🔍 Check isLoggedIn() =", loggedIn, "(localStorage =", localStorage.getItem('isLoggedIn'), ")");
-  return loggedIn;
+  const status = sessionStorage.getItem('isLoggedIn') === 'true';
+  console.log("🔐 Check isLoggedIn():", status);
+  return status;
 }
 
 function setLoggedIn(status) {
-  // Default to true if no parameter passed (for backward compatibility with auth.js)
+  // Default to true if not specified (for backward compatibility with auth.js)
   if (status === undefined) {
     status = true;
   }
+  status = !!status;
+  console.log("🔐 Setting login status to:", status);
   
   if (status) {
-    console.log("✅ Setting logged in status to TRUE");
-    localStorage.setItem('isLoggedIn', 'true');
-    console.log("✅ localStorage.isLoggedIn =", localStorage.getItem('isLoggedIn'));
-    // Initialize Firebase sync when login happens
-    setTimeout(initializeFirebaseSync, 500);
+    sessionStorage.setItem('isLoggedIn', 'true');
+    console.log("✅ Login saved in sessionStorage");
+    // Note: Real-time sync will be initialized when dashboard loads
   } else {
-    console.log("✅ Logging out - setting logged in status to FALSE");
-    localStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('isLoggedIn');
+    console.log("✅ Login cleared from sessionStorage");
+    // Stop sync when user logs out
+    stopRealtimeSync();
   }
 }
 
 function logout() {
-  localStorage.removeItem('isLoggedIn');
+  setLoggedIn(false);
 }
 
 // ==========================================
-// HELPER: Wait for cache to load
+// INITIALIZATION
 // ==========================================
-
-async function waitForCacheReady() {
-  return new Promise((resolve) => {
-    if (cacheLoaded) {
-      resolve();
-    } else {
-      document.addEventListener('cacheReady', () => resolve(), { once: true });
-    }
-  });
-}
-
-console.log("✅ Storage module loaded (Firebase + Local Cache hybrid)");
+console.log("✅ Storage module loaded (Firestore)");

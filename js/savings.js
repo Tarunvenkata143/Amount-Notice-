@@ -20,9 +20,9 @@ document.addEventListener("DOMContentLoaded", function() {
   updateSavingsTotal();
   updateSavingsInEntries();
   
-  // Listen for Firebase real-time updates
-  document.addEventListener("dataUpdated", function() {
-    console.log("🔄 Firebase savings data updated - refreshing UI");
+  // Listen for Firestore real-time updates
+  document.addEventListener("firestoreUpdated", function() {
+    console.log("📱 Firestore savings data updated - refreshing UI");
     loadSavingsEntries();
     updateSavingsTotal();
     updateSavingsInEntries();
@@ -50,7 +50,7 @@ function addSavingsEntry() {
       </select>
     </td>
     <td><input type="number" class="savings-amount" min="0" placeholder="0" readonly></td>
-    <td><button onclick="deleteSavingsEntry(${rowIndex})" class="delete-btn">❌</button></td>
+    <td><button onclick="deleteSavingsEntryFromForm(${rowIndex})" class="delete-btn">❌</button></td>
   `;
 
   tbody.appendChild(row);
@@ -85,25 +85,42 @@ function addSavingsEntry() {
 }
 
 // ============================================
-// SAVE SAVINGS ENTRY
+// SAVE SAVINGS ENTRY (Updates Firestore)
 // ============================================
 
 function saveSavingsEntry(index) {
-  const tbody = document.getElementById("savingsBody");
-  const rows = tbody.querySelectorAll("tr");
+  try {
+    const tbody = document.getElementById("savingsBody");
+    const rows = tbody.querySelectorAll("tr");
 
-  if (index < rows.length) {
-    const row = rows[index];
-    const saving = {
-      date: row.querySelector(".savings-date").value,
-      type: row.querySelector(".savings-type").value,
-      amount: parseFloat(row.querySelector(".savings-amount").value) || 0
-    };
+    if (index < rows.length) {
+      const row = rows[index];
+      const saving = {
+        date: row.querySelector(".savings-date").value,
+        type: row.querySelector(".savings-type").value,
+        amount: parseFloat(row.querySelector(".savings-amount").value) || 0
+      };
 
-    const savings = getSavings();
-    savings[index] = saving;
-    saveSavings(savings);
-    updateSavingsTotal();
+      const savings = getSavings();
+      
+      // Update or add the saving
+      if (index < savings.length) {
+        savings[index] = saving;
+      } else {
+        savings.push(saving);
+      }
+      
+      return saveSavings(savings)
+        .then(() => {
+          console.log(`✅ Savings entry ${index} saved`);
+          updateSavingsTotal();
+        })
+        .catch((error) => {
+          console.error(`❌ Failed to save savings entry ${index}:`, error);
+        });
+    }
+  } catch (error) {
+    console.error("❌ Error in saveSavingsEntry:", error);
   }
 }
 
@@ -113,10 +130,35 @@ function saveSavingsEntry(index) {
 
 function deleteSavingsEntry(index) {
   if (confirm("Are you sure you want to delete this saving entry?")) {
-    deleteSaving(index);
-    loadSavingsEntries();
-    updateSavingsTotal();
-    updateSavingsInEntries();
+    const savings = getSavings();
+    savings.splice(index, 1);
+    saveSavings(savings)
+      .then(() => {
+        console.log("✅ Savings entry deleted");
+        loadSavingsEntries();
+        updateSavingsTotal();
+        updateSavingsInEntries();
+      })
+      .catch((error) => {
+        console.error("❌ Failed to delete savings entry:", error);
+      });
+  }
+}
+
+function deleteSavingsEntryFromForm(index) {
+  if (confirm("Are you sure you want to delete this saving entry?")) {
+    const savings = getSavings();
+    savings.splice(index, 1);
+    saveSavings(savings)
+      .then(() => {
+        console.log("✅ Savings entry deleted");
+        loadSavingsEntries();
+        updateSavingsTotal();
+        updateSavingsInEntries();
+      })
+      .catch((error) => {
+        console.error("❌ Failed to delete savings entry:", error);
+      });
   }
 }
 
