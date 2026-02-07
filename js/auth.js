@@ -13,7 +13,7 @@
 
 // ===== COMMON PASSCODE =====
 // Change this to your desired passcode
-const COMMON_PASSCODE = "1234";
+const COMMON_PASSCODE = "2026";
 
 function login() {
   const enteredPasscode = document.getElementById("passcode").value;
