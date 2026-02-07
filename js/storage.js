@@ -172,9 +172,12 @@ function saveBankData(person, bank1, bank2) {
 
   // Write to Firebase (async, but don't wait)
   if (typeof database !== 'undefined' && database) {
-    database.ref(`banks/${person}`).set({ bank1, bank2 }).catch((error) => {
-      console.error("❌ Error saving banks to Firebase:", error);
-    });
+    console.log(`⬆️ Saving banks to Firebase for ${person}:`, { bank1, bank2 });
+    database.ref(`banks/${person}`).set({ bank1, bank2 })
+      .then(() => console.log(`✅ Banks saved to Firebase for ${person}`))
+      .catch((error) => {
+        console.error("❌ Error saving banks to Firebase:", error);
+      });
   } else {
     console.log("⚠️ Firebase not available, data saved locally only");
   }
@@ -204,12 +207,15 @@ function getEntries(person) {
 function saveEntries(person, entries) {
   // Update local cache immediately
   localCache.entries[person] = entries;
-
+  
   // Write to Firebase (async)
   if (typeof database !== 'undefined' && database) {
-    database.ref(`entries/${person}`).set(entries).catch((error) => {
-      console.error("❌ Error saving entries to Firebase:", error);
-    });
+    console.log(`⬆️ Saving ${entries.length} entries to Firebase for ${person}`);
+    database.ref(`entries/${person}`).set(entries)
+      .then(() => console.log(`✅ Entries saved to Firebase for ${person}`))
+      .catch((error) => {
+        console.error("❌ Error saving entries to Firebase:", error);
+      });
   } else {
     console.log("⚠️ Firebase not available, data saved locally only");
   }
@@ -255,9 +261,12 @@ function saveSavings(savings) {
 
   // Write to Firebase (async)
   if (typeof database !== 'undefined' && database) {
-    database.ref('savings').set(savings).catch((error) => {
-      console.error("❌ Error saving savings to Firebase:", error);
-    });
+    console.log(`⬆️ Saving ${savings.length} savings items to Firebase`);
+    database.ref('savings').set(savings)
+      .then(() => console.log('✅ Savings saved to Firebase'))
+      .catch((error) => {
+        console.error("❌ Error saving savings to Firebase:", error);
+      });
   } else {
     console.log("⚠️ Firebase not available, data saved locally only");
   }
