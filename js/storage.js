@@ -322,15 +322,25 @@ function getMonthlyData(person, month, year) {
 // ==========================================
 
 function isLoggedIn() {
-  return localStorage.getItem('isLoggedIn') === "true";
+  const loggedIn = localStorage.getItem('isLoggedIn') === "true";
+  console.log("🔍 Check isLoggedIn() =", loggedIn, "(localStorage =", localStorage.getItem('isLoggedIn'), ")");
+  return loggedIn;
 }
 
 function setLoggedIn(status) {
+  // Default to true if no parameter passed (for backward compatibility with auth.js)
+  if (status === undefined) {
+    status = true;
+  }
+  
   if (status) {
+    console.log("✅ Setting logged in status to TRUE");
     localStorage.setItem('isLoggedIn', 'true');
+    console.log("✅ localStorage.isLoggedIn =", localStorage.getItem('isLoggedIn'));
     // Initialize Firebase sync when login happens
     setTimeout(initializeFirebaseSync, 500);
   } else {
+    console.log("✅ Logging out - setting logged in status to FALSE");
     localStorage.removeItem('isLoggedIn');
   }
 }

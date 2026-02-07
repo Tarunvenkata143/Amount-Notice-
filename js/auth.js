@@ -19,7 +19,9 @@ function login() {
   const enteredPasscode = document.getElementById("passcode").value;
 
   if (enteredPasscode === COMMON_PASSCODE) {
-    setLoggedIn();
+    console.log("✅ Passcode correct! Saving login...");
+    setLoggedIn();  // This calls setLoggedIn(true)
+    console.log("✅ Login saved, redirecting to dashboard...");
     window.location.href = "dashboard.html";
   } else {
     alert("Wrong passcode! Access denied.");
