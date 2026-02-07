@@ -108,23 +108,31 @@ function calculatePersonBRowBalance(row) {
 // SAVE ENTRY
 // ============================================
 
-function savePersonBEntry(index) {
+function savePersonBEntry(person, index) {
+  const personLetter = typeof person === "string" ? person : "B";
   const tbody = document.getElementById("personBBody");
-  const rows = tbody.querySelectorAll("tr");
+  const rows = tbody.querySelectorAll(`tr[data-person="${personLetter}"]`);
 
-  if (index < rows.length) {
-    const row = rows[index];
+  // Find the row with matching index
+  let targetRow = null;
+  rows.forEach(row => {
+    if (row.dataset.index === String(index)) {
+      targetRow = row;
+    }
+  });
+
+  if (targetRow) {
     const entry = {
-      date: row.querySelector(".date-input").value,
-      added: parseFloat(row.querySelector(".added-input").value) || 0,
-      used: parseFloat(row.querySelector(".used-input").value) || 0,
-      savings: parseFloat(row.querySelector(".savings-input").value) || 0,
-      balance: parseFloat(row.querySelector(".balance-input").value) || 0
+      date: targetRow.querySelector(".date-input").value,
+      added: parseFloat(targetRow.querySelector(".added-input").value) || 0,
+      used: parseFloat(targetRow.querySelector(".used-input").value) || 0,
+      savings: parseFloat(targetRow.querySelector(".savings-input").value) || 0,
+      balance: parseFloat(targetRow.querySelector(".balance-input").value) || 0
     };
 
-    const entries = getEntries("B");
+    const entries = getEntries(personLetter);
     entries[index] = entry;
-    saveEntries("B", entries);
+    saveEntries(personLetter, entries);
     updatePersonBTotals();
   }
 }
@@ -133,35 +141,45 @@ function savePersonBEntry(index) {
 // DELETE ENTRY
 // ============================================
 
-function deletePersonBEntry(index) {
+function deletePersonBEntry(person, index) {
   if (confirm("Are you sure you want to delete this entry?")) {
-    deleteEntry("B", index);
+    deleteEntry(person, index);
     loadEntriesB();
     updatePersonBTotals();
   }
 }
 
 // ============================================
-// LOAD ALL ENTRIES
+// LOAD ALL ENTRIES (BOTH PERSON A & B)
 // ============================================
 
 function loadEntriesB() {
   const tbody = document.getElementById("personBBody");
   tbody.innerHTML = "";
 
-  const entries = getEntries("B");
-
-  entries.forEach((entry, index) => {
+  // Get entries from both Person A and B
+  const entriesA = getEntries("A");
+  const entriesB = getEntries("B");
+  
+  // Combine and add person identifier
+  const allEntries = [
+    ...entriesA.map((e, i) => ({...e, person: "Tejaswini", personId: "A", originalIndex: i})),
+    ...entriesB.map((e, i) => ({...e, person: "Tarun", personId: "B", originalIndex: i}))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date)); // Newest first
+  
+  allEntries.forEach((entry, displayIndex) => {
     const row = document.createElement("tr");
-    row.dataset.index = index;
+    row.dataset.person = entry.personId;
+    row.dataset.index = entry.originalIndex;
 
     row.innerHTML = `
+      <td><strong>${entry.person === "Tejaswini" ? "A" : "B"}</strong></td>
       <td><input type="date" class="date-input" value="${entry.date || ''}"></td>
       <td><input type="number" class="added-input" min="0" value="${entry.added || 0}"></td>
       <td><input type="number" class="used-input" min="0" value="${entry.used || 0}"></td>
       <td><input type="number" class="savings-input" min="0" value="${entry.savings || 0}" readonly></td>
       <td><input type="number" class="balance-input" min="0" value="${entry.balance || 0}" readonly></td>
-      <td><button onclick="deletePersonBEntry(${index})" class="delete-btn">❌</button></td>
+      <td><button onclick="deletePersonBEntry('${entry.personId}', ${entry.originalIndex})" class="delete-btn">❌</button></td>
     `;
 
     tbody.appendChild(row);
@@ -172,14 +190,16 @@ function loadEntriesB() {
 
     addedInput.addEventListener("input", () => {
       calculatePersonBRowBalance(row);
-      savePersonBEntry(index);
+      savePersonBEntry(entry.personId, entry.originalIndex);
     });
     usedInput.addEventListener("input", () => {
       calculatePersonBRowBalance(row);
-      savePersonBEntry(index);
+      savePersonBEntry(entry.personId, entry.originalIndex);
     });
 
-    row.querySelector(".date-input").addEventListener("input", () => savePersonBEntry(index));
+    row.querySelector(".date-input").addEventListener("input", () => {
+      savePersonBEntry(entry.personId, entry.originalIndex);
+    });
   });
 }
 
@@ -188,15 +208,18 @@ function loadEntriesB() {
 // ============================================
 
 function updatePersonBTotals() {
-  const entries = getEntries("B");
-
+  // Get entries from BOTH Person A and B
+  const entriesA = getEntries("A");
+  const entriesB = getEntries("B");
+  const allEntries = [...entriesA, ...entriesB];
+  
   const bankData = getBankData("B");
   const startingBank = bankData.bank1 + bankData.bank2;
 
   let totalAdded = 0;
   let totalUsed = 0;
 
-  entries.forEach(entry => {
+  allEntries.forEach(entry => {
     totalAdded += entry.added || 0;
     totalUsed += entry.used || 0;
   });
