@@ -4,26 +4,44 @@
 
 // Check authentication on page load
 document.addEventListener("DOMContentLoaded", function() {
-  if (!isLoggedIn()) {
-    window.location.href = "index.html";
-    return;
+  try {
+    if (!isLoggedIn()) {
+      window.location.href = "index.html";
+      return;
+    }
+    
+    console.log("✅ User authenticated, initializing dashboard...");
+    initializePersonA();
+    
+    // Listen for Firebase real-time updates
+    document.addEventListener("dataUpdated", function() {
+      console.log("🔄 Firebase data updated - refreshing UI");
+      try {
+        loadEntries();
+        loadBankData();
+        updatePersonATotals();
+      } catch (e) {
+        console.error("❌ Error in dataUpdated handler:", e);
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error during PersonA initialization:", error);
+    alert("Error loading app. Check browser console for details.");
   }
-  
-  initializePersonA();
-  
-  // Listen for Firebase real-time updates
-  document.addEventListener("dataUpdated", function() {
-    console.log("🔄 Firebase data updated - refreshing UI");
-    loadEntries();
-    loadBankData();
-    updatePersonATotals();
-  });
 });
 
 function initializePersonA() {
-  loadBankData();
-  loadEntries();
-  updatePersonATotals();
+  try {
+    console.log("Loading bank data...");
+    loadBankData();
+    console.log("Loading entries...");
+    loadEntries();
+    console.log("Updating totals...");
+    updatePersonATotals();
+    console.log("✅ PersonA initialization complete");
+  } catch (error) {
+    console.error("❌ Error in initializePersonA:", error);
+  }
 }
 
 // ============================================

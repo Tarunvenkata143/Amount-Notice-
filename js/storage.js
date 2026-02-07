@@ -28,54 +28,78 @@ let cacheLoaded = false;
  * Call this once when app loads (from auth.js or dashboard load)
  */
 function initializeFirebaseSync() {
-  if (cacheLoaded) return; // Already initialized
+  if (cacheLoaded) {
+    console.log("✅ Firebase sync already initialized");
+    return;
+  }
+
+  // Check if Firebase database is available
+  if (typeof database === 'undefined') {
+    console.error("❌ Firebase database not initialized. Waiting...");
+    setTimeout(initializeFirebaseSync, 1000); // Retry after 1 second
+    return;
+  }
 
   console.log("🔄 Initializing Firebase real-time sync...");
 
-  // Listen for bank changes
-  database.ref('banks').on('value', (snapshot) => {
-    if (snapshot.exists()) {
-      localCache.banks = snapshot.val();
-      console.log("📱 Bank data synced from Firebase");
-      // UI updates happen through event listeners
+  try {
+    // Listen for bank changes
+    database.ref('banks').on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        localCache.banks = snapshot.val();
+        console.log("📱 Bank data synced from Firebase");
+      }
       document.dispatchEvent(new Event('dataUpdated'));
-    }
-  });
+    }, (error) => {
+      console.error("❌ Error reading banks:", error);
+    });
 
-  // Listen for entry changes
-  database.ref('entries').on('value', (snapshot) => {
-    if (snapshot.exists()) {
-      localCache.entries = snapshot.val();
-    } else {
-      localCache.entries = { A: [], B: [] };
-    }
-    console.log("📱 Entries synced from Firebase");
-    document.dispatchEvent(new Event('dataUpdated'));
-  });
+    // Listen for entry changes
+    database.ref('entries').on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        localCache.entries = snapshot.val();
+      } else {
+        localCache.entries = { A: [], B: [] };
+      }
+      console.log("📱 Entries synced from Firebase");
+      document.dispatchEvent(new Event('dataUpdated'));
+    }, (error) => {
+      console.error("❌ Error reading entries:", error);
+    });
 
-  // Listen for savings changes
-  database.ref('savings').on('value', (snapshot) => {
-    if (snapshot.exists()) {
-      localCache.savings = snapshot.val();
-    } else {
-      localCache.savings = [];
-    }
-    console.log("📱 Savings synced from Firebase");
-    document.dispatchEvent(new Event('dataUpdated'));
-  });
+    // Listen for savings changes
+    database.ref('savings').on('value', (snapshot) => {
+      if (snapshot.exists()) {
+        localCache.savings = snapshot.val();
+      } else {
+        localCache.savings = [];
+      }
+      console.log("📱 Savings synced from Firebase");
+      document.dispatchEvent(new Event('dataUpdated'));
+    }, (error) => {
+      console.error("❌ Error reading savings:", error);
+    });
 
-  // Load initial data from Firebase
-  database.ref().once('value', (snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      if (data.banks) localCache.banks = data.banks;
-      if (data.entries) localCache.entries = data.entries;
-      if (data.savings) localCache.savings = data.savings;
-    }
-    cacheLoaded = true;
-    console.log("✅ Firebase cache loaded and listening for changes");
-    document.dispatchEvent(new Event('cacheReady'));
-  });
+    // Load initial data from Firebase
+    database.ref().once('value', (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.banks) localCache.banks = data.banks;
+        if (data.entries) localCache.entries = data.entries;
+        if (data.savings) localCache.savings = data.savings;
+      }
+      cacheLoaded = true;
+      console.log("✅ Firebase cache loaded and listening for changes");
+      document.dispatchEvent(new Event('cacheReady'));
+    }).catch((error) => {
+      console.error("❌ Error loading initial data:", error);
+      cacheLoaded = true; // Mark as loaded anyway to avoid infinite loops
+      document.dispatchEvent(new Event('cacheReady'));
+    });
+
+  } catch (error) {
+    console.error("❌ Error initializing Firebase sync:", error);
+  }
 }
 
 // ==========================================
@@ -100,10 +124,13 @@ function saveBankData(person, bank1, bank2) {
   localCache.banks[person] = { bank1, bank2 };
 
   // Write to Firebase (async, but don't wait)
-  database.ref(`banks/${person}`).set({ bank1, bank2 }).catch((error) => {
-    console.error("❌ Error saving banks to Firebase:", error);
-    alert("Failed to sync bank data. Check your internet connection.");
-  });
+  if (typeof database !== 'undefined' && database) {
+    database.ref(`banks/${person}`).set({ bank1, bank2 }).catch((error) => {
+      console.error("❌ Error saving banks to Firebase:", error);
+    });
+  } else {
+    console.log("⚠️ Firebase not available, data saved locally only");
+  }
 }
 
 function getTotalBank(person) {
@@ -132,10 +159,13 @@ function saveEntries(person, entries) {
   localCache.entries[person] = entries;
 
   // Write to Firebase (async)
-  database.ref(`entries/${person}`).set(entries).catch((error) => {
-    console.error("❌ Error saving entries to Firebase:", error);
-    alert("Failed to sync entries. Check your internet connection.");
-  });
+  if (typeof database !== 'undefined' && database) {
+    database.ref(`entries/${person}`).set(entries).catch((error) => {
+      console.error("❌ Error saving entries to Firebase:", error);
+    });
+  } else {
+    console.log("⚠️ Firebase not available, data saved locally only");
+  }
 }
 
 function addEntry(person, entry) {
@@ -177,10 +207,13 @@ function saveSavings(savings) {
   localCache.savings = savings;
 
   // Write to Firebase (async)
-  database.ref('savings').set(savings).catch((error) => {
-    console.error("❌ Error saving savings to Firebase:", error);
-    alert("Failed to sync savings. Check your internet connection.");
-  });
+  if (typeof database !== 'undefined' && database) {
+    database.ref('savings').set(savings).catch((error) => {
+      console.error("❌ Error saving savings to Firebase:", error);
+    });
+  } else {
+    console.log("⚠️ Firebase not available, data saved locally only");
+  }
 }
 
 function addSaving(saving) {

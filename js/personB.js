@@ -3,26 +3,44 @@
 // ============================================
 
 document.addEventListener("DOMContentLoaded", function() {
-  if (!isLoggedIn()) {
-    window.location.href = "index.html";
-    return;
+  try {
+    if (!isLoggedIn()) {
+      window.location.href = "index.html";
+      return;
+    }
+    
+    console.log("✅ User authenticated, initializing dashboard...");
+    initializePersonB();
+    
+    // Listen for Firebase real-time updates
+    document.addEventListener("dataUpdated", function() {
+      console.log("🔄 Firebase data updated - refreshing UI");
+      try {
+        loadEntriesB();
+        loadBankDataB();
+        updatePersonBTotals();
+      } catch (e) {
+        console.error("❌ Error in dataUpdated handler:", e);
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error during PersonB initialization:", error);
+    alert("Error loading app. Check browser console for details.");
   }
-  
-  initializePersonB();
-  
-  // Listen for Firebase real-time updates
-  document.addEventListener("dataUpdated", function() {
-    console.log("🔄 Firebase data updated - refreshing UI");
-    loadEntriesB();
-    loadBankDataB();
-    updatePersonBTotals();
-  });
 });
 
 function initializePersonB() {
-  loadBankDataB();
-  loadEntriesB();
-  updatePersonBTotals();
+  try {
+    console.log("Loading bank data...");
+    loadBankDataB();
+    console.log("Loading entries...");
+    loadEntriesB();
+    console.log("Updating totals...");
+    updatePersonBTotals();
+    console.log("✅ PersonB initialization complete");
+  } catch (error) {
+    console.error("❌ Error in initializePersonB:", error);
+  }
 }
 
 // ============================================
