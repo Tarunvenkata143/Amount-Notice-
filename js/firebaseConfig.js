@@ -12,13 +12,14 @@
 //
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "1:YOUR_SENDER_ID:web:YOUR_APP_ID"
+  apiKey: "AIzaSyA6siLshtYtBSBS4Vk6hDYaA5DM_35gdSI",
+  authDomain: "expense-excel-tracker.firebaseapp.com",
+  databaseURL: "https://expense-excel-tracker.firebaseio.com",
+  projectId: "expense-excel-tracker",
+  storageBucket: "expense-excel-tracker.firebasestorage.app",
+  messagingSenderId: "135841374623",
+  appId: "1:135841374623:web:5d078784b8fee9ff6fddaa",
+  measurementId: "G-7TQ3QQGGRQ"
 };
 
 // Initialize Firebase (DO NOT MODIFY THIS PART)
