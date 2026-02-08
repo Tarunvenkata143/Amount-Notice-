@@ -347,11 +347,21 @@
         },
       };
 
+      // Show browser notification immediately
+      if (Notification.permission === "granted") {
+        new Notification("Test Notification", {
+          body: "This is a test notification from the settings page",
+          icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>₹</text></svg>",
+          badge: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>₹</text></svg>",
+          requireInteraction: true,
+        });
+      }
+
       // Trigger the onMessage handler
       const event = new CustomEvent("fcmMessageReceived", { detail: testPayload });
       document.dispatchEvent(event);
 
-      showStatus("testStatus", "📬 Test notification sent! (Check console)", "success");
+      showStatus("testStatus", "📬 Test notification sent! ✅", "success");
     }
 
     // Load phone number on page load
