@@ -201,37 +201,47 @@ function setupForegroundMessageHandler() {
 // ==========================================
 // 6. TOKEN REFRESH
 // ==========================================
-// FCM token can expire, listen for refresh events
+// FCM token can expire - modern Firebase handles this automatically
 function setupTokenRefreshListener() {
   if (!fcmMessaging) {
     console.warn("⚠️ FCM not initialized");
     return;
   }
 
-  fcmMessaging.onTokenRefresh(async () => {
-    console.log("🔄 FCM token refreshed");
-    
+  // Modern Firebase handles token refresh automatically
+  // If you need to listen for token changes, use this:
+  if (typeof fcmMessaging.onTokenRefresh === 'function') {
     try {
-      const swRegistration = await navigator.serviceWorker.ready;
-      const newToken = await fcmMessaging.getToken({
-        vapidKey: VAPID_KEY,
-        serviceWorkerRegistration: swRegistration,
+      fcmMessaging.onTokenRefresh(async () => {
+        console.log("🔄 FCM token refreshed");
+        
+        try {
+          const swRegistration = await navigator.serviceWorker.ready;
+          const newToken = await fcmMessaging.getToken({
+            vapidKey: VAPID_KEY,
+            serviceWorkerRegistration: swRegistration,
+          });
+
+          if (newToken) {
+            fcmToken = newToken;
+            console.log("✅ New FCM token obtained:", newToken);
+
+            // Re-store the new token for current person
+            const currentPerson = sessionStorage.getItem('currentPerson') || 'A';
+            await storeFCMToken(currentPerson, newToken);
+          }
+        } catch (error) {
+          console.error("❌ Error refreshing FCM token:", error);
+        }
       });
 
-      if (newToken) {
-        fcmToken = newToken;
-        console.log("✅ New FCM token obtained:", newToken);
-
-        // Re-store the new token for current person
-        const currentPerson = sessionStorage.getItem('currentPerson') || 'A';
-        await storeFCMToken(currentPerson, newToken);
-      }
+      console.log("✅ Token refresh listener set up");
     } catch (error) {
-      console.error("❌ Error refreshing FCM token:", error);
+      console.warn("⚠️ Token refresh listener not available:", error);
     }
-  });
-
-  console.log("✅ Token refresh listener set up");
+  } else {
+    console.log("ℹ️ Token refresh handled automatically by Firebase");
+  }
 }
 
 // ==========================================
