@@ -25,15 +25,7 @@ document.addEventListener("DOMContentLoaded", function() {
     
     console.log("✅ User authenticated, initializing dashboard...");
     
-    // Set current person for notification token storage
-    sessionStorage.setItem('currentPerson', 'B');
-    
     initializePersonB();
-    
-    // Initialize FCM messaging for push notifications
-    setTimeout(async () => {
-      await initializeMessaging();
-    }, 1000);
     
     // Listen for Firestore real-time updates
     document.addEventListener("firestoreUpdated", function(event) {
