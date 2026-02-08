@@ -10,10 +10,13 @@
 </head>
 <body>
 
-  <!-- Header with Logout -->
+  <!-- Header with Navigation -->
   <header class="header">
     <h1>💰 Daily Expense & Savings Tracker</h1>
-    <button onclick="logoutUser()" class="logout-btn">🚪 Logout</button>
+    <div style="display: flex; gap: 10px;">
+      <button onclick="window.location.href='settings.html'" class="logout-btn" style="background: #4CAF50;">🔔 Notifications</button>
+      <button onclick="logoutUser()" class="logout-btn">🚪 Logout</button>
+    </div>
   </header>
 
   <div class="container">
@@ -250,16 +253,18 @@
 
   </div>
 
-  <!-- Firebase SDK: v10 (Firestore + Auth) -->
+  <!-- Firebase SDK: v10 (Firestore + Auth + Messaging) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
   
   <!-- Your Firebase Configuration -->
   <script src="js/firebaseConfig.js"></script>
   
   <!-- Your Application Scripts (storage.js MUST load first) -->
   <script src="js/storage.js"></script>
+  <script src="js/messaging.js"></script>
   <script src="js/personA.js"></script>
   <script src="js/personB.js"></script>
   <script src="js/savings.js"></script>

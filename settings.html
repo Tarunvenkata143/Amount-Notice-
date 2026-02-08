@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Settings</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .settings-container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f5f5f5;
+      border-radius: 8px;
+    }
+    
+    .settings-section {
+      background: white;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+      border-left: 4px solid #007bff;
+    }
+    
+    .settings-section h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    
+    .form-group {
+      margin: 15px 0;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    .form-group textarea {
+      resize: vertical;
+      font-family: monospace;
+      min-height: 80px;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #545b62;
+    }
+    
+    .btn-copy {
+      background: #28a745;
+      color: white;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    
+    .btn-copy:hover {
+      background: #218838;
+    }
+    
+    .status-box {
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    
+    .status-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+    
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #007bff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>⚙️ Notification Settings</h1>
+  </header>
+
+  <div class="settings-container">
+    <a class="back-link" onclick="window.location.href='dashboard.html'">&larr; Back to Dashboard</a>
+
+    <!-- FCM Token Display -->
+    <div class="settings-section">
+      <h3>📱 FCM Token (for notifications)</h3>
+      <p>This token is automatically generated when you grant notification permission. Copy it if you need to send test notifications from a backend.</p>
+      <div class="form-group">
+        <label>Your FCM Token:</label>
+        <textarea id="fcmTokenDisplay" readonly placeholder="Token will appear here after notification permission is granted"></textarea>
+        <button class="btn btn-copy" onclick="copyToClipboard('fcmTokenDisplay')">📋 Copy Token</button>
+      </div>
+      <div id="tokenStatus"></div>
+    </div>
+
+    <!-- Phone Number Settings (for backend to use when sending SMS) -->
+    <div class="settings-section">
+      <h3>📞 Phone Number for SMS Reminders</h3>
+      <p>Enter your phone number so the backend can send you daily SMS reminders about expenses. Format: +91XXXXXXXXXX</p>
+      <div class="form-group">
+        <label>Phone Number:</label>
+        <input type="tel" id="phoneNumber" placeholder="+91XXXXXXXXXX">
+      </div>
+      <div id="phoneStatus"></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="savePhoneNumber()">💾 Save Phone Number</button>
+        <button class="btn btn-secondary" onclick="fetchPhoneNumber()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- VAPID Key (if you want to manage it from UI) -->
+    <div class="settings-section">
+      <h3>🔐 VAPID Key Configuration</h3>
+      <p>The public VAPID key is currently hardcoded in js/messaging.js. To update it, edit the VAPID_KEY constant in that file.</p>
+      <div class="form-group">
+        <label>Current VAPID Key:</label>
+        <textarea id="vapidKeyDisplay" readonly>BGrGRo4H27tAy7F3Z-f2tKlL8qV9-W4DnX5pK6mM9vBc</textarea>
+      </div>
+      <p style="color: #999; font-size: 12px;">
+        Find your VAPID key in Firebase Console → Project Settings → Cloud Messaging tab.
+      </p>
+    </div>
+
+    <!-- Notification Permission Status -->
+    <div class="settings-section">
+      <h3>✅ Permission Status</h3>
+      <div id="permissionStatus" class="status-box status-warning">Checking...</div>
+      <button class="btn btn-primary" onclick="requestPermissionAgain()">🔔 Request Permission</button>
+    </div>
+
+    <!-- Test Notification -->
+    <div class="settings-section">
+      <h3>🧪 Test Notification</h3>
+      <p>Click the button to test receiving a foreground notification (app must be open).</p>
+      <button class="btn btn-primary" onclick="sendTestNotification()">📬 Send Test Notification</button>
+      <div id="testStatus"></div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK and custom scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+  
+  <script src="js/firebaseConfig.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/messaging.js"></script>
+
+  <script>
+    // ==========================================
+    // Check authentication
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", function() {
+      if (!isLoggedIn()) {
+        window.location.href = "index.html";
+        return;
+      }
+
+      // Initialize messaging
+      initializeMessaging().then(() => {
+        updateUIStatus();
+      });
+
+      // Set up listener for messaging events
+      onFCMMessageReceived((payload) => {
+        console.log("Test notification received:", payload);
+        showStatus("testStatus", "✅ Test notification received! Check console for details.", "success");
+      });
+    });
+
+    // ==========================================
+    // UI Helper Functions
+    // ==========================================
+
+    function copyToClipboard(elementId) {
+      const element = document.getElementById(elementId);
+      if (!element.value) {
+        showStatus("tokenStatus", "⚠️ No token available yet. Grant notification permission first.", "warning");
+        return;
+      }
+      element.select();
+      document.execCommand("copy");
+      showStatus("tokenStatus", "✅ Token copied to clipboard!", "success");
+    }
+
+    function showStatus(elementId, message, type) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `<div class="status-box status-${type}">${message}</div>`;
+    }
+
+    async function updateUIStatus() {
+      // Show FCM token
+      const token = getCurrentFCMToken();
+      if (token) {
+        document.getElementById("fcmTokenDisplay").value = token;
+        showStatus("tokenStatus", "✅ FCM token is active", "success");
+      } else {
+        showStatus("tokenStatus", "⚠️ No FCM token. Grant notification permission first.", "warning");
+      }
+
+      // Show permission status
+      const permission = Notification.permission;
+      let statusText = "";
+      let statusType = "";
+
+      if (permission === "granted") {
+        statusText = "✅ Notification permission GRANTED";
+        statusType = "success";
+      } else if (permission === "denied") {
+        statusText = "❌ Notification permission DENIED (You can change this in browser settings)";
+        statusType = "error";
+      } else {
+        statusText = "⚠️ Notification permission not yet requested";
+        statusType = "warning";
+      }
+
+      showStatus("permissionStatus", statusText, statusType);
+    }
+
+    async function requestPermissionAgain() {
+      const hasPermission = await requestNotificationPermission();
+      if (hasPermission) {
+        // Re-initialize to get new token
+        const token = await initializeFCM();
+        if (token) {
+          document.getElementById("fcmTokenDisplay").value = token;
+          showStatus("tokenStatus", "✅ New FCM token obtained!", "success");
+        }
+      }
+      updateUIStatus();
+    }
+
+    async function savePhoneNumber() {
+      const phoneNumber = document.getElementById("phoneNumber").value;
+      if (!phoneNumber) {
+        showStatus("phoneStatus", "⚠️ Please enter a phone number", "warning");
+        return;
+      }
+
+      const currentPerson = sessionStorage.getItem("currentPerson") || "A";
+
+      try {
+        const sharedDocRef = db.collection("expenseTracker").doc("sharedData");
+        await sharedDocRef.update({
+          [`reminderPhones.${currentPerson}`]: phoneNumber,
+        });
+        showStatus("phoneStatus", `✅ Phone number saved for Person ${currentPerson}!`, "success");
+      } catch (error) {
+        console.error("Error saving phone number:", error);
+        showStatus("phoneStatus", `❌ Error saving phone number: ${error.message}`, "error");
+      }
+    }
+
+    async function fetchPhoneNumber() {
+      const currentPerson = sessionStorage.getItem("currentPerson") || "A";
+
+      try {
+        const docSnap = await db.collection("expenseTracker").doc("sharedData").get();
+        if (docSnap.exists) {
+          const phones = docSnap.data().reminderPhones || {};
+          const phone = phones[currentPerson] || "";
+          document.getElementById("phoneNumber").value = phone;
+          showStatus("phoneStatus", "✅ Phone number loaded", "success");
+        } else {
+          showStatus("phoneStatus", "⚠️ No settings found", "warning");
+        }
+      } catch (error) {
+        console.error("Error fetching phone number:", error);
+        showStatus("phoneStatus", `❌ Error loading: ${error.message}`, "error");
+      }
+    }
+
+    function sendTestNotification() {
+      // Create a fake notification payload for testing
+      const testPayload = {
+        notification: {
+          title: "Test Notification",
+          body: "This is a test notification from the settings page",
+        },
+        data: {
+          url: "/dashboard.html",
+          test: "true",
+        },
+      };
+
+      // Trigger the onMessage handler
+      const event = new CustomEvent("fcmMessageReceived", { detail: testPayload });
+      document.dispatchEvent(event);
+
+      showStatus("testStatus", "📬 Test notification sent! (Check console)", "success");
+    }
+
+    // Load phone number on page load
+    window.addEventListener("load", () => {
+      fetchPhoneNumber();
+    });
+  </script>
+</body>
+</html>
